@@ -1,0 +1,11 @@
+/book.md
+/assets/images/*
+/resources/_gen/*
+/data/*
+/public*
+/ebook*
+/static/EPUB/fonts/*
+/content.md
+/àfaire
+/.*
+!/.gitignore

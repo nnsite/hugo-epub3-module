@@ -1,0 +1,23 @@
+{{- $dest := .Destination -}}
+{{- $res := resources.Get (print "images/" $dest) -}}
+{{- if not $res -}}
+  {{ errorf "Missing image: %s" (print "images/" $dest) }}
+{{- end -}}
+{{- if hugo.IsDevelopment -}}
+	{{ $res = $res.Process "q1" | images.Filter (images.Colorize 0 0 100) (images.Brightness -100) -}}
+{{- else -}}
+	{{ $res = $res.Process "fit 1024x1024" }}
+{{- end -}}
+{{- $id := printf "%s" (anchorize (path.Base $dest)) -}}
+{{- site.Store.Add "epubImages" (dict
+  "id" $id
+  "href" $res.RelPermalink
+  "mediaType" $res.MediaType.Type
+) -}}
+{{- if.IsBlock -}}
+<figure {{ with .Attributes.class }}class="{{ . }}"{{ end }}>
+  {{- with .Title -}}
+<figcaption>{{- . | $.Page.RenderString -}} {{- with $.Attributes.cite }}, <cite>{{ . | $.Page.RenderString }}</cite>{{- end }} {{- with $.Attributes.author }}, <span>{{ . }}</span>{{- end -}} </figcaption>
+{{- end }}{{ end -}}
+<img src="{{ $res.RelPermalink }}" alt="{{ with .Text }}{{ . | htmlUnescape }}{{ else }}See the figcaption{{ end }}" {{- with $res }} width="{{ .Width }}" height="{{ .Height }}"{{ end }} {{ with .Attributes.id }}id="{{ . }}"{{ end }}></img>
+ {{- if .IsBlock }}</figure>{{ end -}}

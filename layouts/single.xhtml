@@ -1,0 +1,13 @@
+{{- printf "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" | safeHTML }}
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ops="http://www.idpf.org/2007/ops"
+      xml:lang="{{ site.Language.Name }}">
+  <head>
+    <title>{{ .Site.Params.title }}: {{ .Title }}</title>
+<link rel="stylesheet" href="css/epub.css"></link>
+</head>
+  <body ops:type="chapter">
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{{- if eq .Type "alert" -}}
+<figure class="{{.AlertType}}">
+{{ with .AlertTitle }}<figcaption>{{ . }}</figcaption>{{ end }}
+{{- .Text | replaceRE `(?s)^\s*<p>(.*)</p>\s*$` "$1" | safeHTML -}}
+</figure>
+{{- end -}}

@@ -1,0 +1,235 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use utf8;
+use File::Path qw(make_path);
+use Cwd qw(cwd);
+
+my ($input, $outdir) = @ARGV or die "Usage: $0 book.md output_dir\n";
+my $source_dir = cwd();
+make_path($outdir) unless -d $outdir;
+
+sub slurp {
+    my ($path) = @_;
+    open my $fh, "<:encoding(UTF-8)", $path or die "Cannot open $path: $!";
+    local $/ = undef;
+    my $text = <$fh>;
+    close $fh;
+    return defined $text ? $text : '';
+}
+
+sub write_file {
+    my ($path, $content) = @_;
+    open my $fh, ">:encoding(UTF-8)", $path or die "Cannot write $path: $!";
+    $content =~ s/\n+\z/\n/;
+    print $fh $content;
+    close $fh;
+}
+
+sub quote_yaml {
+    my ($s) = @_;
+    $s =~ s/\\/\\\\/g;
+    $s =~ s/"/\\"/g;
+    return qq{"$s"};
+}
+
+sub to_yaml_array_of_maps {
+    my ($items) = @_;
+    my @maps;
+    for my $item (@$items) {
+        my $map = join(", ", map { "$_: " . quote_yaml($item->{$_}) } sort keys %$item);
+        push @maps, "{$map}";
+    }
+    return "[" . join(", ", @maps) . "]";
+}
+
+sub parse_inline_array_of_maps {
+    my ($str) = @_;
+    my @items;
+    $str =~ s/^\[|\]$//g;
+    for my $chunk (split /\},\s*\{/, $str) {
+        $chunk =~ s/^\{|\}$//g;
+        my %map;
+        while ($chunk =~ /(\w+)\s*:\s*"([^"]*)"/g) {
+            $map{$1} = $2;
+        }
+        push @items, \%map if %map;
+    }
+    return \@items;
+}
+
+sub parse_front_matter {
+    my ($text) = @_;
+    return ('', $text, {}) unless $text =~ s/\A(---\R.*?\R---\R?)//s;
+    my $fm = $1;
+    my %meta;
+
+    if ($fm =~ /^title:\s*(.*?)\s*$/m) {
+        $meta{title} = $1;
+        $meta{title} =~ s/^["']|["']$//g;
+    }
+
+    if ($fm =~ /^subtitle:\s*(.*?)\s*$/m) {
+        $meta{subtitle} = $1;
+        $meta{subtitle} =~ s/^["']|["']$//g;
+    }
+
+    for my $key (qw(frontCoverImages backCoverImages)) {
+        if ($fm =~ /^$key:\s*(\[.*\])\s*$/m) {
+            $meta{$key} = parse_inline_array_of_maps($1);
+        }
+    }
+
+    return ($fm, $text, \%meta);
+}
+
+sub update_hugo_yaml {
+    my ($dir, $meta) = @_;
+    my $config = "$dir/hugo.yaml";
+    die "hugo.yaml not found in $dir\n" unless -f $config;
+
+    my $content = slurp($config);
+
+    if (defined $meta->{title}) {
+        my $quoted = quote_yaml($meta->{title});
+        if ($content =~ /^title:/m) {
+            $content =~ s/^title:\s*.*$/title: $quoted/m;
+        } else {
+            $content =~ s/^(params:)/title: $quoted\n$1/m;
+        }
+    }
+
+    for my $key (qw(subtitle frontCoverImages backCoverImages)) {
+        next unless defined $meta->{$key};
+
+        my $val = ref($meta->{$key}) eq 'ARRAY'
+            ? to_yaml_array_of_maps($meta->{$key})
+            : quote_yaml($meta->{$key});
+
+        if ($content =~ /^([ \t]+)$key:/m) {
+            my $indent = $1;
+            $content =~ s/^$indent$key:\s*.*$/$indent$key: $val/m;
+        } elsif ($content =~ /^params:/m) {
+            $content =~ s/^(params:\s*\n)/$1  $key: $val\n/m;
+        } else {
+            $content .= "\nparams:\n  $key: $val\n";
+        }
+    }
+
+    write_file($config, $content);
+    return $config;
+}
+
+sub build_fm {
+    my (%args) = @_;
+    my $fm = "---\n";
+    $fm .= "title: " . quote_yaml($args{title} // 'Untitled') . "\n";
+    $fm .= "weight: $args{weight}\n" if defined $args{weight};
+    $fm .= "---\n\n";
+    return $fm;
+}
+
+sub split_chapters {
+    my ($body) = @_;
+    my @chunks = split(/(?=^\s*#\s+)/m, $body);
+    return grep { defined $_ && $_ =~ /\S/ } @chunks;
+}
+
+sub chapter_title {
+    my ($chunk) = @_;
+    my ($line) = $chunk =~ /^(#\s+.*)$/m;
+    return unless defined $line;
+    $line =~ s/^#\s+//;
+    $line =~ s/\{[^}]*\}//g;
+    $line =~ s/\R\z//;
+    $line =~ s/^\s+|\s+$//g;
+    return $line;
+}
+
+sub urlize {
+    my ($s) = @_;
+    $s = lc($s);
+    $s =~ s/[^\w\s-]//g;
+    $s =~ s/\s+/-/g;
+    $s =~ s/-+/-/g;
+    $s =~ s/^-|-$//g;
+    return $s;
+}
+
+sub chapter_slug {
+    my ($chunk) = @_;
+    my ($line) = $chunk =~ /^(#\s+.*)$/m;
+    return unless defined $line;
+
+    # Use explicit {#id} if present
+    if ($line =~ /\{#([\w-]+)\}/) {
+        return $1;
+    }
+
+    # Fall back to urlized heading text
+    $line =~ s/^#\s+//;
+    $line =~ s/\{[^}]*\}//g;
+    $line =~ s/\R\z//;
+    $line =~ s/^\s+|\s+$//g;
+    return urlize($line);
+}
+
+# Returns the explicit {#id} only, or undef
+sub chapter_explicit_id {
+    my ($chunk) = @_;
+    my ($line) = $chunk =~ /^(#\s+.*)$/m;
+    return unless defined $line;
+    return $1 if $line =~ /\{#([\w-]+)\}/;
+    return;
+}
+
+open my $IN, "<:encoding(UTF-8)", $input or die "Cannot open $input: $!";
+local $/ = undef;
+my $text = <$IN>;
+close $IN;
+
+my ($front_matter, $body, $meta) = parse_front_matter($text);
+
+my $book_title = $meta->{title} // '';
+$book_title =~ s/^\s+|\s+$//g;
+$book_title = 'Untitled' if $book_title eq '';
+$meta->{title} = $book_title;
+
+update_hugo_yaml($source_dir, $meta);
+
+my @parts = split_chapters($body);
+my $weight = 1;
+
+# pagemap: explicit {#id} -> filestem (no extension)
+# only populated when the heading carries an explicit id
+my %pagemap;
+
+for my $part (@parts) {
+    my $title = chapter_title($part);
+    next unless defined $title;
+    my $slug     = chapter_slug($part) // "chapter_$weight";
+    my $prefix   = sprintf("%02d", $weight);
+    my $filestem = "${prefix}_${slug}";
+
+    # Only record in pagemap when an explicit {#id} was given
+    my $explicit_id = chapter_explicit_id($part);
+    if (defined $explicit_id) {
+        $pagemap{$explicit_id} = $filestem;
+    }
+
+    $part =~ s/^#\s+.*\R//m;
+    $part =~ s/^\s+//;
+    my $chapter = build_fm(title => $title, weight => $weight) . $part;
+    write_file("$outdir/${filestem}.md", $chapter);
+    $weight++;
+}
+
+# Write data/pagemap.yaml only if there is something to write
+my $data_dir = "$source_dir/data";
+make_path($data_dir) unless -d $data_dir;
+
+my $yaml = "# Auto-generated by split_book.pl — do not edit by hand\n";
+for my $id (sort keys %pagemap) {
+    $yaml .= "$id: " . quote_yaml($pagemap{$id}) . "\n";
+}
+write_file("$data_dir/pagemap.yaml", $yaml);

@@ -1,0 +1,7 @@
+<h{{- add .Level 1 }} id="{{- .Anchor -}}">
+  <a href="#{{- .Anchor -}}" {{- with .Attributes.emoji -}}data-emoji="{{- . -}}"{{- end -}}>
+    {{- title .Text -}}
+  </a>
+</h{{- add .Level 1 -}}>
+{{- .Page.Store.Set "heading" (dict "id" .Anchor "text" .Text "plainText" .PlainText) -}}
+{{- if .Attributes.emoji -}}{{- .Page.Store.Add "emoji" .Attributes.emoji -}}{{end}}

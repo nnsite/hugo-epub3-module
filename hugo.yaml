@@ -1,0 +1,79 @@
+DefaultContentLanguage: en
+locale: en-EN
+disableKinds:
+  - RSS
+  - robotsTXT
+  - "404"
+  - taxonomy
+  - section
+  - term
+  - sitemap
+baseURL: "/"
+uglyurls: true
+contentDir: content
+disablePathToLower: true
+title: "Garden of Earthly Delights: The Secret of the Future?"
+params:
+  frontCoverImages: [{filename: "frontcover.jpg"}, {caption: "The tryptich of Jheronimus Bosch (circa 1500), Prado museum, Madrid", filename: "1280px-The_Garden_of_Earthly_Delights_by_Bosch_High_Resolution2.jpg"}]
+  backCoverImages: [{filename: "Bosch-engraving.jpg"}, {filename: "backcover.jpg"}]
+  subtitle: "The mystery Hieronymus Bosch solved by Guy-Claude Burger"
+  Author: "Guy-Claude Burger"
+mediaTypes:
+  application/xhtml+xml:
+    suffixes:
+      - xhtml
+  application/opf+xml:
+    suffixes:
+      - opf
+markup:
+  tableOfContents:
+    startLevel: 1
+    endLevel: 2
+    ordered: true
+  goldmark:
+    extensions:
+      definitionList: true
+      footnote: true
+      linkify: true
+      strikethrough: true
+      table: true
+      taskList: true
+      typographer: false
+    parser:
+      wrapStandAloneImageWithinParagraph: false
+      autoHeadingID: true
+      attribute:
+        block: true
+        title: true
+    renderer:
+      hardWraps: true
+      xhtml: true
+outputFormats:
+  XHTML:
+    mediaType: application/xhtml+xml
+    isHTML: false
+    permalinkable: true
+  OPF:
+    mediaType: application/opf+xml
+    permalinkable: true
+    isPlainText: true
+    baseName: package
+outputs:
+  page:
+    - XHTML
+  home:
+    - OPF
+permalinks:
+  /: /:slugorcontentbasename/
+minify:
+  minifyOutput: true
+  tdewolff:
+    html:
+      keepComments: false
+      keepspecialcomments: false
+      keepDefaultAttrVals: true
+      keepDocumentTags: true
+      keepEndTags: true
+      keepQuotes: true
+  xml:
+     keepWhitespace: false

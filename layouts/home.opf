@@ -1,0 +1,47 @@
+{{- site.Store.Set "epubImages" (slice) -}}
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
+xmlns:dcterms="http://purl.org/dc/terms/" version="3.0" xml:lang="{{ site.Language.Name }}" unique-identifier="pub-identifier">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+  <dc:title>{{ site.Title }}</dc:title>
+  <dc:language>{{ site.Language.Name }}</dc:language>
+  <dc:identifier id="pub-identifier">urn:uuid:550e8400-e29b-41d4-a716-446655440000</dc:identifier>
+  <dc:creator>{{ site.Params.Author}}</dc:creator>
+  <meta property="dcterms:modified">2012-10-24T15:30:00Z</meta>
+</metadata>
+<manifest>
+{{- range $j, $item := site.Params.frontCoverImages -}}
+  {{ $img := cond hugo.IsDevelopment ((resources.Get (print "images/" $item.filename)).Process "q1" | images.Filter (images.Colorize 0 0 100) (images.Brightness -100)) ((resources.Get (print "images/" $item.filename)).Process "fit 1024x1024") }}
+
+  {{ $xhtml := resources.Get "cover.xhtml" | resources.ExecuteAsTemplate (print "frontcover-" $j ".xhtml") (dict "title" (print "frontcover-img-" $j) "id" (print "frontcover-" $j "-img") "img" $img "caption" $item.caption) }}<item id="{{ print "frontcover-" $j }}" href="{{ $xhtml.RelPermalink }}" media-type="application/xhtml+xml" />
+{{- end -}}
+{{- range $j, $item := site.Params.backCoverImages -}}
+  {{ $img := cond hugo.IsDevelopment ((resources.Get (print "images/" $item.filename)).Process "q1" | images.Filter (images.Colorize 0 0 100) (images.Brightness -100)) ((resources.Get (print "images/" $item.filename)).Process "fit 1024x1024") }}
+  {{ $xhtml := resources.Get "cover.xhtml" | resources.ExecuteAsTemplate (print "backcover-" $j ".xhtml") (dict "title" (print "backcover-img-" $j) "id" (print "backcover-" $j "-img") "img" $img "caption" $item.caption) }}<item id="{{ print "backcover-" $j }}" href="{{ $xhtml.RelPermalink }}" media-type="application/xhtml+xml" />
+{{- end -}}
+<item id="htmltoc" properties="nav" media-type="application/xhtml+xml" href="{{- (resources.Get "toc.xhtml" | resources.ExecuteAsTemplate "toc.xhtml" $.Page).RelPermalink -}}"/>
+{{- range site.RegularPages -}}
+<item id="{{ printf "u%s" .File.UniqueID }}" href="{{ .RelPermalink }}" media-type="application/xhtml+xml"/>
+{{- end -}}
+{{- range resources.Match "css/*.css" -}}{{- with (resources.ExecuteAsTemplate .Name $.Page .) -}}
+<item id="u{{ .Name | anchorize }}" href="{{ .RelPermalink }}" media-type="text/css"/>
+{{- end -}}{{- end -}}
+{{- range site.RegularPages }}{{ $noop := .WordCount }}{{ end -}}
+{{- range (uniq (site.Store.Get "epubImages")) -}}
+<item id="u{{ .id }}" href="{{ .href }}" media-type="{{ .mediaType }}"/>
+{{- end -}}
+{{- range hugo.Data.fonts }}<item id="font-{{ .family }}" href="{{ .path }}" media-type="{{ .mimetype }}"/>{{ end -}}
+</manifest>
+<spine>
+{{- range $j, $item := site.Params.backCoverImages -}}
+<itemref idref="frontcover-{{ $j }}" linear="yes"/>
+{{- end -}}
+<itemref idref="htmltoc" linear="yes"/>
+{{- range site.RegularPages -}}
+<itemref idref="{{ printf "u%s" .File.UniqueID }}"/>
+{{- end -}}
+{{ range $j, $item := site.Params.backCoverImages }}
+<itemref idref="backcover-{{ $j }}" linear="yes"/>
+{{- end -}}
+</spine>
+</package>
