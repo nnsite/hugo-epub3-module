@@ -114,7 +114,7 @@ $(DEPLOY_STAMP): $(SOURCES) $(GIT_REPO)
 	cd $(GIT_REPO)
 	git add .
 	git commit -m "update site" || true
-	git push || {
+	git push -f || {
 		notify-send -u critical -e "$(NAME): Deploy FAILED"
 		exit $$?
 	}
