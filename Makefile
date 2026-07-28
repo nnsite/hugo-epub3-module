@@ -13,7 +13,7 @@ endif
 CONTENT := content
 EPUBDIR := $(PUBLIC)/EPUB
 SPLIT_STAMP := $(CONTENT)/.stamp
-ARCHIVE := ../archives/$(NAME)-HUGO.tar.zst
+ARCHIVE := ../../archives/$(NAME)-HUGO.tar.zst
 DEPLOY_STAMP := $(GIT_REPO)/.stamp-deploy
 
 SOURCES := $(wildcard \
