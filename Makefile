@@ -1,4 +1,4 @@
-NAME := EBOOK
+NAME := JDD
 HUGO_ENVIRONMENT ?= preview
 GIT_REPO ?= .
 .ONESHELL:
@@ -13,7 +13,7 @@ endif
 CONTENT := content
 EPUBDIR := $(PUBLIC)/EPUB
 SPLIT_STAMP := $(CONTENT)/.stamp
-ARCHIVE := ../Administration/archives/$(NAME)-HUGO.tar.zst
+ARCHIVE := ~/Documents/archives/$(NAME)-HUGO.tar.zst
 DEPLOY_STAMP := $(GIT_REPO)/.stamp-deploy
 
 SOURCES := $(wildcard \
